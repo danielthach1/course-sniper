@@ -7,7 +7,7 @@ def init_db():
     conn = sqlite3.connect("app.db")
     cur = conn.cursor()
     
-    cur.execute("""
+    cur.executescript("""
     CREATE TABLE IF NOT EXISTS courses (
         course_id TEXT PRIMARY KEY,
         title TEXT,
@@ -23,14 +23,15 @@ def init_db():
 
     CREATE TABLE IF NOT EXISTS seat_snapshots (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        section_id TEXT REFERENCES sections(section_id),
-        open_seats Integer,
-        checked_at TIMERSTAMP DEFAULT CURRENT_TIMESTAMP
+        section_id TEXT,
+        open_seats BOOLEAN,
+        checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
     CREATE TABLE IF NOT EXISTS watches (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        section_id TEXT REFERENCES sections(section_id),
+        section_id TEXT,
+        subject TEXT,
         active BOOLEAN DEFAULT 1,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
@@ -54,10 +55,9 @@ def get_active_watches(conn):
 def get_last_snapshot(conn, section_id):
     cur = conn.cursor()
     cur.execute("""
-        SELECT open_seats FROM set_snapshot
+        SELECT open_seats FROM seat_snapshots
         WHERE section_id = ?
-        ORDER BY id DESC
-        LIMIT 1
+        ORDER BY id DESC LIMIT 1
     """, (section_id,))
     row = cur.fetchone()
     return row["open_seats"] if row else None
@@ -65,15 +65,15 @@ def get_last_snapshot(conn, section_id):
 def save_snapshot(conn, section_id, open_seats):
     cur = conn.cursor()
     cur.execute("""
-        INSERT INTO seat_snapshots (section_id, open_seats))
+        INSERT INTO seat_snapshots (section_id, open_seats)
         VALUES (?, ?)
     """, (section_id, open_seats))
     conn.commit()
     
-def add_watch(section_id):
+def add_watch(section_id, subject):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO watches (section_id) VALUES (?)", (section_id,))
+    cur.execute("INSERT INTO watches (section_id, subject) VALUES (?, ?)", (section_id, subject))
     conn.commit()
     conn.close()
     print(f"Now watching section {section_id}.")

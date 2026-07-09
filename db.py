@@ -73,15 +73,52 @@ def save_snapshot(conn, section_id, open_seats):
 def add_watch(section_id, subject):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("INSERT INTO watches (section_id, subject) VALUES (?, ?)", (section_id, subject))
-    conn.commit()
-    conn.close()
-    print(f"Now watching section {section_id}.")
+    
+    cur.execute("SELECT id FROM watches WHERE section_id = ? AND active = 1", (section_id,))
+    existing = cur.fetchone()
+    
+    if existing:
+        print(f"Already watching section {section_id}.")
+    else:
+        cur.execute("INSERT INTO watches (section_id, subject) VALUES (?, ?)", (section_id, subject))
+        conn.commit()
+        print(f"Now watching section {section_id}.")
+        
 
 def remove_watch(section_id):
     conn = get_connection()
     cur = conn.cursor()
-    cur.execute("UPDATE watches SET active = 0 WHERE section_id = ?", (section_id,))
+    
+    cur.execute("SELECT id FROM watches WHERE section_id = ? AND active = 1", (section_id,))
+    existing = cur.fetchone()
+    
+    if existing:
+        cur.execute("UPDATE watches SET active = 0 WHERE section_id = ?", (section_id,))
+        conn.commit()
+        print(f"Stopped watching section {section_id}.")
+    else:
+        print(f"Section {section_id} is not currently being watched.")    
+    
+    conn.close()
+    
+def list_watches():
+    conn = get_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT section_id, subject FROM watches WHERE active = 1")
+    rows = cur.fetchall()
+    conn.close()
+    
+    if not rows:
+        print("No active watches.")
+    else:
+        print("Active watches:")
+        for row in rows:
+            print(f"  Section {row['section_id']} (subject {row['subject']})")
+            
+def reset_db():
+    conn = get_connection()
+    conn.execute("DELETE FROM watches")
+    conn.execute("DELETE FROM seat_snapshots")
     conn.commit()
     conn.close()
-    print(f"Stopped watching section {section_id}.")
+    print("Database reset.")
